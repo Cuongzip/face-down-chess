@@ -12,12 +12,7 @@ class BoardConverter:
 
     @staticmethod
     def board_to_chessboard(board, turn, sr=None, sc=None):
-        """
-        Convert GameState.board -> python-chess Board.
-        If (sr, sc) is selected and the piece is face-down, use start_type.
-        Otherwise use true_type.
-        """
-        b = chess.Board(None)  # empty board
+        b = chess.Board(None)
 
         for r in range(8):
             for c in range(8):
@@ -25,9 +20,7 @@ class BoardConverter:
                 if p is None:
                     continue
 
-                # For selected square: use start_type if face-down
-                if (sr is not None and sc is not None and
-                    r == sr and c == sc and p.isFaceDown and not p.isKing):
+                if sr is not None and sc is not None and r == sr and c == sc and p.isFaceDown and not p.isKing:
                     p_type = p.start_type
                 else:
                     p_type = p.true_type
@@ -42,12 +35,8 @@ class BoardConverter:
                 sq = chess.square(c, 7 - r)
                 b.set_piece_at(sq, piece)
 
-        # set correct turn
         b.turn = chess.WHITE if turn == 'w' else chess.BLACK
-
-        # disable castling (important for custom chess)
         b.castling_rights = 0
-
         return b
 
     @staticmethod
@@ -55,4 +44,3 @@ class BoardConverter:
         piece = board[sr][sc]
         board[er][ec] = piece
         board[sr][sc] = None
-        return board
