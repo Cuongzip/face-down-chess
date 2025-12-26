@@ -6,6 +6,7 @@ from constants import (
     DARK,
     PLAYER_SIZE,
     HIGHLIGHT,
+    LAST_MOVE_HIGHLIGHT,
     TEXT_WHITE,
     TEXT_BLACK,
     CIRCLE,
@@ -15,7 +16,6 @@ from constants import (
 
 class Board:
     def __init__(self, board_img=None, piece_images=None):
-        """Initialize board with optional images."""
         self.board_img = board_img
         self.piece_images = piece_images or {}
         self.font = pygame.font.SysFont("Roboto", 20, bold=True)
@@ -52,11 +52,9 @@ class Board:
                 screen.blit(txt, (x + SIZE//2 - txt.get_width() //
                             2, y + SIZE//2 - txt.get_height()//2))
 
-    def draw(self, screen, state, legal_moves, flipped=False):
-        # Draw board background (image or color grid)
+    def draw(self, screen, state, legal_moves, flipped=False, last_move=None):
         if self.board_img:
             bw, bh = self.board_img.get_width(), self.board_img.get_height()
-            # If board image is small (like 2x2 tiles), tile it
             if bw < BOARD_SIZE or bh < BOARD_SIZE:
                 if bw % 2 == 0 and bh % 2 == 0:
                     tile_w = bw // 2
@@ -80,12 +78,10 @@ class Board:
                                 pygame.draw.rect(
                                     screen, color, (MARGIN + c*SIZE, MARGIN + r*SIZE + PLAYER_SIZE, SIZE, SIZE))
             else:
-                # Large board image -> scale and blit once
                 img = pygame.transform.smoothscale(
                     self.board_img, (BOARD_SIZE, BOARD_SIZE))
                 screen.blit(img, (MARGIN, MARGIN + PLAYER_SIZE))
         else:
-            # No image -> draw color grid (with flip support)
             for r in range(8):
                 for c in range(8):
                     disp_r = 7 - r if flipped else r
@@ -98,7 +94,6 @@ class Board:
                          SIZE + PLAYER_SIZE, SIZE, SIZE),
                     )
 
-        # Highlight legal moves (legal_moves are in board coords)
         for br in range(8):
             for bc in range(8):
                 if (br, bc) in legal_moves:
@@ -111,24 +106,31 @@ class Board:
                             disp_r * SIZE + PLAYER_SIZE)
                     )
 
-        # Draw pieces
+        # Highlight last move
+        if last_move:
+            for r, c in [(last_move[0], last_move[1]), (last_move[2], last_move[3])]:
+                disp_r = 7 - r if flipped else r
+                disp_c = 7 - c if flipped else c
+                s = pygame.Surface((SIZE, SIZE), pygame.SRCALPHA)
+                s.fill(LAST_MOVE_HIGHLIGHT)
+                screen.blit(
+                    s, (MARGIN + disp_c * SIZE, MARGIN +
+                        disp_r * SIZE + PLAYER_SIZE)
+                )
+
         for r in range(8):
             for c in range(8):
                 disp_r = 7 - r if flipped else r
                 disp_c = 7 - c if flipped else c
-                # Get piece from actual board position, not flipped position
                 p = state.get_piece(r, c)
                 if p:
                     self.draw_piece(screen, disp_r, disp_c, p)
 
-        # Draw rank numbers inside left corner of each row's leftmost square
         for sr in range(8):
             disp_r = 7 - sr if flipped else sr
-            # leftmost displayed column on screen
             disp_c_for_rank = 7 if flipped else 0
             label = str(8 - disp_r)
             lbl_surf = self._label_font.render(label, True, TEXT_BLACK)
-            # choose contrasting color based on square color
             sq_color_is_light = ((disp_r + disp_c_for_rank) % 2 == 0)
             lbl_color = TEXT_BLACK if sq_color_is_light else TEXT_WHITE
             lbl_surf = self._label_font.render(label, True, lbl_color)
@@ -136,13 +138,10 @@ class Board:
             y = MARGIN + sr * SIZE + PLAYER_SIZE + 4
             screen.blit(lbl_surf, (x, y))
 
-        # Draw file letters inside bottom corner of each column's bottom square
         for sc in range(8):
             disp_c = 7 - sc if flipped else sc
-            # bottom displayed row on screen
             disp_r_for_file = 7 if not flipped else 0
             lbl = chr(ord('a') + disp_c)
-            # choose contrasting color based on square color
             sq_color_is_light = ((disp_r_for_file + disp_c) % 2 == 0)
             lbl_color = TEXT_BLACK if sq_color_is_light else TEXT_WHITE
             lbl_surf = self._label_font.render(lbl, True, lbl_color)
@@ -188,18 +187,31 @@ class Board:
         p = state.get_piece(r, c)
 
         if selected is None:
+            # Chưa chọn quân nào, click vào quân cờ của mình để chọn
             if p and p.color == human_color:
                 selected = (r, c)
                 legal_moves = self.compute_legal_moves_for(state, r, c)
             return selected, legal_moves, None
 
-        if p and p.color == human_color and (r, c) != selected:
+        # Đã chọn quân rồi
+        sr, sc = selected
+
+        # Nếu click vào cùng quân cờ đã chọn, giữ nguyên selection (không deselect)
+        if (r, c) == selected:
+            return selected, legal_moves, None
+
+        # Nếu click vào quân cờ khác của mình, chọn quân mới
+        if p and p.color == human_color:
             selected = (r, c)
             legal_moves = self.compute_legal_moves_for(state, r, c)
             return selected, legal_moves, None
 
-        sr, sc = selected
-        if (r, c) not in legal_moves:
+        # Nếu click vào legal move, thực hiện nước đi
+        if (r, c) in legal_moves:
+            # Tiếp tục xử lý move ở dưới
+            pass
+        else:
+            # Click vào ô trống hoặc ô không phải legal move -> deselect
             return None, [], None
 
         start_sq = f"{chr(sc+ord('a'))}{8-sr}"

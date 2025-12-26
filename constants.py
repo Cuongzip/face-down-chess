@@ -29,6 +29,7 @@ TEXT_BLACK = (0, 0, 0)
 
 # highlights
 HIGHLIGHT = (0, 255, 0, 120)
+LAST_MOVE_HIGHLIGHT = (255, 255, 0, 100)
 
 # sidebar specific aliases (can be overridden if needed)
 SIDEBAR_BG = (13, 21, 34)
