@@ -13,10 +13,10 @@ class Sidebar:
         self.human_color = 'w'
         self.on_start = None
         self.on_new_game = None
-        self.on_undo = None
         self.started = False
         self.move_log = []
         self.scroll_offset = 0
+        self.max_lines = 16
 
         # Load difficulty icons
         UI_ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
@@ -212,7 +212,7 @@ class Sidebar:
             # Hiển thị log nước đi
             y = MARGIN + 70
             line_h = 32
-            max_lines = 10  # max visible lines before scrolling
+            max_lines = self.max_lines  # max visible lines before scrolling
             start_idx = self.scroll_offset
             end_idx = start_idx + max_lines
 
@@ -226,6 +226,23 @@ class Sidebar:
                 screen.blit(w_txt, (SIDEBAR_X + 55, y))
                 screen.blit(b_txt, (SIDEBAR_X + 170, y))
                 y += line_h
+
+            # Draw scrollbar
+            scrollbar_x = SIDEBAR_X + SIDEBAR_W - 20
+            scrollbar_y = MARGIN + 70
+            scrollbar_h = self.max_lines * line_h
+            scrollbar_track = pygame.Rect(
+                scrollbar_x, scrollbar_y, 10, scrollbar_h)
+            pygame.draw.rect(screen, (100, 100, 100),
+                             scrollbar_track)  # grey track
+            if len(self.move_log) > self.max_lines:
+                visible_ratio = self.max_lines / len(self.move_log)
+                thumb_h = scrollbar_h * visible_ratio
+                scroll_ratio = self.scroll_offset / \
+                    (len(self.move_log) - self.max_lines)
+                thumb_y = scrollbar_y + scroll_ratio * (scrollbar_h - thumb_h)
+                thumb_rect = pygame.Rect(scrollbar_x, thumb_y, 10, thumb_h)
+                pygame.draw.rect(screen, TEXT_WHITE, thumb_rect)
 
             # Vẽ shadow cho các nút
             self._draw_shadow(screen, self.newgame_rect,
@@ -274,7 +291,7 @@ class Sidebar:
                 if ev.y > 0:  # scroll up
                     self.scroll_offset = max(0, self.scroll_offset - 1)
                 else:  # scroll down
-                    max_offset = max(0, len(self.move_log) - 10)
+                    max_offset = max(0, len(self.move_log) - self.max_lines)
                     self.scroll_offset = min(
                         max_offset, self.scroll_offset + 1)
                 return
@@ -310,6 +327,8 @@ class Sidebar:
                 self.move_log.append(["", move_str])
             else:
                 self.move_log[-1][1] = move_str
+        # Auto-scroll to latest move
+        self.scroll_offset = max(0, len(self.move_log) - self.max_lines)
 
     def undo_move(self, color):
         if not self.move_log:
@@ -320,6 +339,9 @@ class Sidebar:
                 self.move_log.pop()
         else:
             self.move_log.pop()
+        # Adjust scroll offset if necessary
+        self.scroll_offset = min(self.scroll_offset, max(
+            0, len(self.move_log) - self.max_lines))
 
     def stop_game(self):
         self.started = False
